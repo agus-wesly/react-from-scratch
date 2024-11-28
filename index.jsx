@@ -1,3 +1,4 @@
+const container = document.getElementById("root");
 let wipRoot = null;
 let nextUnitOfWork = null;
 let currentWork = null;
@@ -20,7 +21,6 @@ function createElement(type, props, ...children) {
         },
     };
 }
-
 function render(element, container) {
     wipRoot = {
         props: {
@@ -45,7 +45,6 @@ function createTextElement(text) {
 }
 
 rerender("Hello");
-const container = document.getElementById("root");
 function rerender(value) {
     /** @jsx Didact.createElement */
     const element = (

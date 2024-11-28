@@ -18,6 +18,7 @@ function createElement(type, props, ...children) {
     }
   };
 }
+const container = document.getElementById("root");
 function render(element, container) {
   wipRoot = {
     props: {
@@ -39,14 +40,8 @@ function createTextElement(text) {
     }
   };
 }
-const container = document.getElementById("root");
-function handleChange(e) {
-  rerender(e.target.value);
-}
-function random() {
-  return Math.floor(Math.random() * 3);
-}
-const rerender = value => {
+rerender("Hello");
+function rerender(value) {
   /** @jsx Didact.createElement */
   const element = Didact.createElement("div", {
     id: "foo"
@@ -54,17 +49,21 @@ const rerender = value => {
     type: "text",
     oninput: handleChange,
     value: value
-  }), random() > 1 ? Didact.createElement("p", null, value) : Didact.createElement("a", null, value), Didact.createElement("h5", null, "HELLOOOOO"));
+  }), Didact.createElement("h5", null, "Hello world !"), Didact.createElement("p", null, value));
   Didact.render(element, container);
-};
-rerender("Hello");
+}
+function handleChange(e) {
+  rerender(e.target.value);
+}
+function random() {
+  return Math.floor(Math.random() * 3);
+}
 function workLoop(deadline) {
   let shouldYield = false;
   while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     shouldYield = deadline.timeRemaining() < 1;
   }
-  // commit phase
   if (!nextUnitOfWork && wipRoot) {
     commitRoot();
   }
@@ -81,16 +80,11 @@ function commitPhase(fiber) {
   if (!fiber) return;
   const parentNode = fiber.parent.node;
   if (fiber.effectTag === "PLACEMENT") {
-    // TODO : Find out when the old node is removed
-    // console.log("current child : ", parentNode.childNodes);
-    // console.log("child : ", fiber.node);
     parentNode.appendChild(fiber.node);
   } else if (fiber.effectTag === "UPDATE") {
-    // Update props
     updateProps(fiber.node, fiber.alternate.props, fiber.props);
     updateEventListener(fiber.node, fiber.alternate.props, fiber.props);
   } else if (fiber.effectTag === "DELETION") {
-    console.log("deletion", fiber.node);
     parentNode.removeChild(fiber.node);
   }
   commitPhase(fiber.child);
@@ -110,7 +104,6 @@ function updateProps(node, prevProps, newProps) {
   });
 }
 function updateEventListener(node, prevProps, newProps) {
-  // Remove changed or removed event listener
   Object.keys(prevProps).filter(isEventListener).filter(name => !(name in newProps) || isNew(prevProps, newProps)(name)).forEach(name => {
     const eventType = name.toLowerCase().substring(2);
     node.removeEventListener(eventType, prevProps[name]);
@@ -152,8 +145,6 @@ function reconcileChildren(wipFiber, childElements) {
       };
     }
     if (!sameType && element) {
-      console.log("old type", oldFiber?.type);
-      console.log("el type", element.type);
       newFiber = {
         node: null,
         type: element.type,
@@ -164,8 +155,6 @@ function reconcileChildren(wipFiber, childElements) {
       };
     }
     if (!sameType && oldFiber) {
-      console.log("old type-del", oldFiber?.type);
-      console.log("el type-del", element.type);
       oldFiber.effectTag = "DELETION";
       deletions.push(oldFiber);
     }
