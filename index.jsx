@@ -44,14 +44,25 @@ function createTextElement(text) {
     };
 }
 
+function Hello(props) {
+    return (
+        <div>
+            <h1>Hello world</h1>
+            <p>This is a paragraph ???</p>
+            <p>The text is {props.text}</p>
+        </div>
+    );
+}
+
 rerender("Hello");
 function rerender(value) {
     /** @jsx Didact.createElement */
     const element = (
         <div id="foo">
             <input type="text" oninput={handleChange} value={value} />
-            <h5>Hello world !</h5>
-            <p>{value}</p>
+            {value ? <h1>Val : {value}</h1> : null}
+            <p>1</p>
+            <a>2</a>
         </div>
     );
     Didact.render(element, container);
@@ -80,7 +91,8 @@ function workLoop(deadline) {
 requestIdleCallback(workLoop);
 
 function commitRoot() {
-    deletions.forEach(commitPhase);
+    console.log(deletions);
+    deletions.forEach((fiber) => commitPhase(fiber));
     commitPhase(wipRoot.child);
     currentWork = wipRoot;
     wipRoot = null;
@@ -88,17 +100,33 @@ function commitRoot() {
 
 function commitPhase(fiber) {
     if (!fiber) return;
-    const parentNode = fiber.parent.node;
-    if (fiber.effectTag === "PLACEMENT") {
+    let parentFiber = fiber.parent;
+    while (!parentFiber.node) {
+        parentFiber = parentFiber.parent;
+    }
+    const parentNode = parentFiber.node;
+    if (fiber.effectTag === "PLACEMENT" && fiber.node !== null) {
         parentNode.appendChild(fiber.node);
-    } else if (fiber.effectTag === "UPDATE") {
+    } else if (fiber.effectTag === "UPDATE" && fiber.node !== null) {
         updateProps(fiber.node, fiber.alternate.props, fiber.props);
         updateEventListener(fiber.node, fiber.alternate.props, fiber.props);
     } else if (fiber.effectTag === "DELETION") {
-        parentNode.removeChild(fiber.node);
+        commitDeletion(fiber, parentNode);
     }
     commitPhase(fiber.child);
     commitPhase(fiber.sibling);
+}
+
+function commitDeletion(fiber, parentNode) {
+    if (fiber.node) {
+        try {
+            parentNode.removeChild(fiber.node);
+        } catch (error) {
+            console.log("oops");
+        }
+    } else {
+        commitDeletion(fiber.child, parentNode);
+    }
 }
 
 const isNotInNewFiber = (newProps) => (k) => !(k in newProps);
@@ -142,13 +170,11 @@ function updateEventListener(node, prevProps, newProps) {
 }
 
 function performUnitOfWork(fiber) {
-    if (!fiber.node) {
-        fiber.node = createNode(fiber);
+    if (fiber.type instanceof Function) {
+        performFunction(fiber);
+    } else {
+        performElement(fiber);
     }
-    const childElements = fiber.props.children;
-
-    reconcileChildren(fiber, childElements);
-
     if (fiber.child) return fiber.child;
     let nextFiber = fiber;
     while (nextFiber) {
@@ -157,9 +183,22 @@ function performUnitOfWork(fiber) {
     }
 }
 
+function performFunction(fiber) {
+    const childElements = [fiber.type(fiber.props)];
+    reconcileChildren(fiber, childElements);
+}
+
+function performElement(fiber) {
+    if (!fiber.node) {
+        fiber.node = createNode(fiber);
+    }
+    const childElements = fiber.props.children;
+    reconcileChildren(fiber, childElements);
+}
+
 function reconcileChildren(wipFiber, childElements) {
     let idx = 0;
-    let prevChildElement = null;
+    let prevFiber = null;
     let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
     while (idx < childElements.length || oldFiber != null) {
         const element = childElements[idx];
@@ -194,11 +233,14 @@ function reconcileChildren(wipFiber, childElements) {
         }
         if (idx === 0) {
             wipFiber.child = newFiber;
-        } else {
-            prevChildElement.sibling = newFiber;
+        } else if (newFiber) {
+            prevFiber.sibling = newFiber;
         }
         ++idx;
-        prevChildElement = newFiber;
+        // TODO : fix this
+        if (newFiber) {
+            prevFiber = newFiber;
+        }
     }
 }
 
